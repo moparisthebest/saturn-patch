@@ -1,0 +1,6 @@
+/target
+*.bin*
+*.diff
+*.sync-conflict*
+*.kate-swp
+/.idea

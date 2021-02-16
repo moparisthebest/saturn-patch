@@ -1,0 +1,17 @@
+[package]
+name = "saturn-patch"
+version = "1.0.0"
+authors = ["moparisthebest <admin@moparisthebest.com>"]
+edition = "2018"
+
+description = "patch and unpatch region and manufacturer code on saturn games"
+repository  = "https://code.moparisthebest.com/moparisthebest/saturn-patch"
+keywords    = ["saturn", "sega", "rom", "iso", "bin", "region"]
+
+license = "AGPL-3.0-or-later"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1.0"
+hmac-sha256 = "0.1.6"
+libc = "0.2.72"
