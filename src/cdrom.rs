@@ -16,24 +16,23 @@
 /*-- You should have received a copy of the GNU General Public License      --*/
 /*-- along with this program. If not, see <http://www.gnu.org/licenses/>.   --*/
 /*----------------------------------------------------------------------------*/
-#![allow(dead_code, mutable_transmutes, non_camel_case_types, non_snake_case,
-non_upper_case_globals, unused_assignments, unused_mut)]
+#![allow(dead_code, mutable_transmutes, non_camel_case_types, non_snake_case, non_upper_case_globals, unused_assignments, unused_mut)]
 
 use libc;
 
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
+
 static mut CDROM_crc: [libc::c_uint; 256] = [0; 256];
-#[no_mangle]
+
 static mut CDROM_exp: [libc::c_uchar; 256] = [0; 256];
-#[no_mangle]
+
 static mut CDROM_log: [libc::c_uchar; 256] = [0; 256];
-#[no_mangle]
+
 static mut CDROM_enabled: libc::c_uint = 0 as libc::c_int as libc::c_uint;
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Init_Tables() {
+
+unsafe fn CDROM_Init_Tables() {
     let mut edc: libc::c_uint = 0;
     let mut ecc: libc::c_uint = 0;
     let mut i: libc::c_uint = 0;
@@ -62,18 +61,18 @@ unsafe extern "C" fn CDROM_Init_Tables() {
     }
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_NUM2BCD(mut value: libc::c_char) -> libc::c_char {
+
+unsafe fn CDROM_NUM2BCD(mut value: libc::c_char) -> libc::c_char {
     return ((value as libc::c_int / 10 as libc::c_int) << 4 as libc::c_int | value as libc::c_int % 10 as libc::c_int) as libc::c_char;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_BCD2NUM(mut value: libc::c_char) -> libc::c_char {
+
+unsafe fn CDROM_BCD2NUM(mut value: libc::c_char) -> libc::c_char {
     return ((value as libc::c_int >> 4 as libc::c_int) * 10 as libc::c_int | value as libc::c_int & 0xf as libc::c_int) as libc::c_char;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Update(mut sector: *mut libc::c_char, mut lba: libc::c_int, mut cdmode: libc::c_int, mut flags: libc::c_int, mut check: libc::c_int) -> libc::c_int {
+
+unsafe fn CDROM_Update(mut sector: *mut libc::c_char, mut lba: libc::c_int, mut cdmode: libc::c_int, mut flags: libc::c_int, mut check: libc::c_int) -> libc::c_int {
     if CDROM_enabled == 0 {
         CDROM_Init_Tables();
         CDROM_enabled = 1 as libc::c_int as libc::c_uint
@@ -115,8 +114,8 @@ unsafe extern "C" fn CDROM_Update(mut sector: *mut libc::c_char, mut lba: libc::
     return 0 as libc::c_int;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Check(mut sector: *mut libc::c_char, mut cdmode: libc::c_int) -> libc::c_int {
+
+unsafe fn CDROM_Check(mut sector: *mut libc::c_char, mut cdmode: libc::c_int) -> libc::c_int {
     let mut tmp1: libc::c_int = 0;
     let mut tmp2: libc::c_int = 0;
     let mut tmp3: libc::c_int = 0;
@@ -226,15 +225,15 @@ unsafe extern "C" fn CDROM_Check(mut sector: *mut libc::c_char, mut cdmode: libc
     return 0 as libc::c_int;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Put_Sync(mut source: *mut libc::c_char) {
+
+unsafe fn CDROM_Put_Sync(mut source: *mut libc::c_char) {
     *(source as *mut libc::c_uint) = 0xffffff00 as libc::c_uint;
     *(source.offset(4 as libc::c_int as isize) as *mut libc::c_uint) = 0xffffffff as libc::c_uint;
     *(source.offset(8 as libc::c_int as isize) as *mut libc::c_uint) = 0xffffff as libc::c_int as libc::c_uint;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Put_Header(mut source: *mut libc::c_char, mut lba: libc::c_int, mut cdmode: libc::c_int) {
+
+unsafe fn CDROM_Put_Header(mut source: *mut libc::c_char, mut lba: libc::c_int, mut cdmode: libc::c_int) {
     lba += 150 as libc::c_int;
     *source = CDROM_NUM2BCD((lba / 75 as libc::c_int / 60 as libc::c_int) as libc::c_char);
     *source.offset(1 as libc::c_int as isize) = CDROM_NUM2BCD((lba / 75 as libc::c_int % 60 as libc::c_int) as libc::c_char);
@@ -242,20 +241,20 @@ unsafe extern "C" fn CDROM_Put_Header(mut source: *mut libc::c_char, mut lba: li
     *source.offset(3 as libc::c_int as isize) = cdmode as libc::c_char;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Put_SubHeader(mut source: *mut libc::c_char, mut flags: libc::c_int) {
+
+unsafe fn CDROM_Put_SubHeader(mut source: *mut libc::c_char, mut flags: libc::c_int) {
     *(source as *mut libc::c_uint) = flags as libc::c_uint;
     *(source.offset(4 as libc::c_int as isize) as *mut libc::c_uint) = flags as libc::c_uint;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Put_Intermediate(mut source: *mut libc::c_char) {
+
+unsafe fn CDROM_Put_Intermediate(mut source: *mut libc::c_char) {
     *(source as *mut libc::c_uint) = 0 as libc::c_int as libc::c_uint;
     *(source.offset(4 as libc::c_int as isize) as *mut libc::c_uint) = 0 as libc::c_int as libc::c_uint;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Put_EDC(mut source: *mut libc::c_char, mut length: libc::c_int, mut target: *mut libc::c_char) {
+
+unsafe fn CDROM_Put_EDC(mut source: *mut libc::c_char, mut length: libc::c_int, mut target: *mut libc::c_char) {
     let mut edc: libc::c_uint = 0;
     let mut i: libc::c_uint = 0;
     edc = 0 as libc::c_int as libc::c_uint;
@@ -267,8 +266,8 @@ unsafe extern "C" fn CDROM_Put_EDC(mut source: *mut libc::c_char, mut length: li
     *(target as *mut libc::c_uint) = edc;
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Put_ECC_P(mut source: *mut libc::c_char, mut target: *mut libc::c_char) {
+
+unsafe fn CDROM_Put_ECC_P(mut source: *mut libc::c_char, mut target: *mut libc::c_char) {
     let mut table: libc::c_uint = 0;
     let mut column: libc::c_uint = 0;
     let mut row: libc::c_uint = 0;
@@ -305,8 +304,8 @@ unsafe extern "C" fn CDROM_Put_ECC_P(mut source: *mut libc::c_char, mut target: 
     }
 }
 /*----------------------------------------------------------------------------*/
-#[no_mangle]
-unsafe extern "C" fn CDROM_Put_ECC_Q(mut source: *mut libc::c_char, mut target: *mut libc::c_char) {
+
+unsafe fn CDROM_Put_ECC_Q(mut source: *mut libc::c_char, mut target: *mut libc::c_char) {
     let mut table: libc::c_uint = 0;
     let mut row: libc::c_uint = 0;
     let mut column: libc::c_uint = 0;
@@ -340,8 +339,7 @@ unsafe extern "C" fn CDROM_Put_ECC_Q(mut source: *mut libc::c_char, mut target: 
     }
 }
 
-#[no_mangle]
-unsafe extern "C" fn Check_Image(mut sector: &[u8], mut length: *mut libc::c_int, mut offset: *mut libc::c_int, mut position: *mut libc::c_int) -> libc::c_int {
+unsafe fn Check_Image(mut sector: &[u8], mut length: *mut libc::c_int, mut offset: *mut libc::c_int, mut position: *mut libc::c_int) -> libc::c_int {
     let mut buffer: [u8; 8192] = [0; 8192];
     let mut i: libc::c_int = 0;
     let mut n: libc::c_int = 0;
@@ -435,8 +433,8 @@ impl CDRomImage {
 
     pub fn update_sectors(&self, bytes: &mut [u8]) {
         unsafe {
-            CDROM_Update(bytes.as_mut_ptr() as *mut i8, 0, self.mode, 0, 0);
-            CDROM_Update(bytes[self.length..].as_mut_ptr() as *mut i8, 1, self.mode, 0, 0);
+            CDROM_Update(bytes.as_mut_ptr() as *mut libc::c_char, 0, self.mode, 0, 0);
+            CDROM_Update(bytes[self.length..].as_mut_ptr() as *mut libc::c_char, 1, self.mode, 0, 0);
         }
     }
 
