@@ -6,10 +6,16 @@ edition = "2018"
 
 description = "patch and unpatch region and manufacturer code on saturn games"
 repository  = "https://code.moparisthebest.com/moparisthebest/saturn-patch"
-keywords    = ["saturn", "sega", "rom", "iso", "bin", "region"]
+keywords    = ["saturn", "sega", "rom", "bin", "region"]
 
 license = "AGPL-3.0-or-later"
 readme = "README.md"
+
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "*.md",
+]
 
 [dependencies]
 anyhow = "1.0"
