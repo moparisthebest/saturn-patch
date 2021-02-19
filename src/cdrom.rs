@@ -20,6 +20,8 @@
 
 use libc;
 
+use std::convert::TryInto;
+
 /*----------------------------------------------------------------------------*/
 
 static mut CDROM_crc: [libc::c_uint; 256] = [0; 256];
@@ -339,60 +341,6 @@ unsafe fn CDROM_Put_ECC_Q(mut source: *mut libc::c_char, mut target: *mut libc::
     }
 }
 
-unsafe fn Check_Image(mut sector: &[u8], mut length: *mut libc::c_int, mut offset: *mut libc::c_int, mut position: *mut libc::c_int) -> libc::c_int {
-    let mut buffer: [u8; 8192] = [0; 8192];
-    let mut i: libc::c_int = 0;
-    let mut n: libc::c_int = 0;
-    let mut tabla: [[libc::c_int; 3]; 8] = [
-        [0 as libc::c_int, 0x800 as libc::c_int, 0 as libc::c_int],
-        [1 as libc::c_int, 0x930 as libc::c_int, 0x10 as libc::c_int],
-        [21 as libc::c_int, 0x930 as libc::c_int, 0x18 as libc::c_int],
-        [1 as libc::c_int, 0x990 as libc::c_int, 0x10 as libc::c_int],
-        [21 as libc::c_int, 0x990 as libc::c_int, 0x18 as libc::c_int],
-        [1 as libc::c_int, 0x940 as libc::c_int, 0x10 as libc::c_int],
-        [21 as libc::c_int, 0x940 as libc::c_int, 0x18 as libc::c_int],
-        [-(1 as libc::c_int), -(1 as libc::c_int), -(1 as libc::c_int)],
-    ];
-    n = 0 as libc::c_int;
-    while n < 2 as libc::c_int {
-        i = 0 as libc::c_int;
-        while tabla[i as usize][0 as libc::c_int as usize] != -(1 as libc::c_int) {
-            *length = tabla[i as usize][1 as libc::c_int as usize];
-            *position = tabla[i as usize][2 as libc::c_int as usize];
-            loop {
-                *offset = *length * 150 as libc::c_int * n;
-                //fseek(fp, *offset + 0x000010 * *length, SEEK_SET);
-                //if (fread(buffer, 2, *length, fp) != *length) return -1;
-                // manually implement above fseek+fread
-                {
-                    let copy_start = (*offset + 0x000010 * *length) as usize;
-                    let copy_end = copy_start + (2 * *length) as usize;
-                    if copy_start >= sector.len() || copy_end >= sector.len() {
-                        return -1;
-                    }
-                    let src = &sector[copy_start..copy_end];
-                    &buffer[0..src.len()].copy_from_slice(src);
-                }
-
-                if *(buffer.as_mut_ptr().offset(*position as isize) as *mut libc::c_int) == 0x30444301 as libc::c_int {
-                    if *(buffer.as_mut_ptr().offset(*position as isize).offset(4 as libc::c_int as isize) as *mut libc::c_int) == 0x13130 as libc::c_int {
-                        if *(buffer.as_mut_ptr().offset(*position as isize).offset(*length as isize).offset(1 as libc::c_int as isize) as *mut libc::c_int) == 0x30304443 as libc::c_int {
-                            return tabla[i as usize][0 as libc::c_int as usize];
-                        }
-                    }
-                }
-                if *position < 0x10 as libc::c_int {
-                    break;
-                }
-                *length -= 0x10 as libc::c_int;
-                *position -= 0x10 as libc::c_int
-            }
-            i += 1
-        }
-        n += 1
-    }
-    return -(1 as libc::c_int);
-}
 /*----------------------------------------------------------------------------*/
 /*--  EOF                                           Copyright (C) 2012 CUE  --*/
 /*----------------------------------------------------------------------------*/
@@ -403,6 +351,10 @@ unsafe fn Check_Image(mut sector: &[u8], mut length: *mut libc::c_int, mut offse
 
 use anyhow::{bail, Result};
 
+pub fn i32(slice: &[u8], offset: usize) -> Result<i32> {
+    Ok(i32::from_le_bytes(slice[offset..(offset + 4)].try_into()?))
+}
+
 pub struct CDRomImage {
     mode: i32,
     length: usize,
@@ -411,24 +363,59 @@ pub struct CDRomImage {
 }
 
 impl CDRomImage {
-    pub fn new(bytes: &[u8]) -> Result<CDRomImage> {
-        let mode: i32;
-        let mut length = 0;
-        let mut offset = 0;
-        let mut position = 0;
+    pub fn new(sector: &[u8]) -> Result<CDRomImage> {
+        let mut length = 0usize;
+        let mut offset = 0usize;
+        let mut position = 0usize;
 
-        unsafe {
-            mode = Check_Image(&bytes, &mut length, &mut offset, &mut position);
+        let mut slice = &sector[..];
+        let mut i = 0usize;
+        let mut n = 0usize;
+        let mut tabla: [[usize; 3]; 8] = [
+            [0, 0x800, 0],
+            [1, 0x930, 0x10],
+            [21, 0x930, 0x18],
+            [1, 0x990, 0x10],
+            [21, 0x990, 0x18],
+            [1, 0x940, 0x10],
+            [21, 0x940, 0x18],
+            [usize::MAX, usize::MAX, usize::MAX],
+        ];
+        n = 0;
+        while n < 2 {
+            i = 0;
+            while tabla[i as usize][0 as usize] != usize::MAX {
+                length = tabla[i as usize][1 as usize];
+                position = tabla[i as usize][2 as usize];
+                loop {
+                    offset = length * 150 * n;
+                    {
+                        let copy_start = (offset + 0x000010 * length) as usize;
+                        let copy_end = copy_start + (2 * length) as usize;
+                        if copy_start >= sector.len() || copy_end >= sector.len() {
+                            bail!("File not supported or invalid");
+                        }
+                        slice = &sector[copy_start..copy_end];
+                    }
+                    if i32(slice, position)? == 0x30444301 && i32(slice, position + 4)? == 0x13130 && i32(slice, position + length + 1)? == 0x30304443 {
+                        return Ok(CDRomImage {
+                            mode: tabla[i as usize][0 as usize] as i32,
+                            length: length as usize,
+                            offset: offset as usize,
+                            position: position as usize,
+                        });
+                    }
+                    if position < 0x10 {
+                        break;
+                    }
+                    length -= 0x10;
+                    position -= 0x10
+                }
+                i += 1
+            }
+            n += 1
         }
-        if mode == -1 {
-            bail!("File not supported or invalid");
-        }
-        Ok(CDRomImage {
-            mode,
-            length: length as usize,
-            offset: offset as usize,
-            position: position as usize,
-        })
+        bail!("File not supported or invalid")
     }
 
     pub fn update_sectors(&self, bytes: &mut [u8]) {
